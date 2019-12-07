@@ -1,2 +1,2 @@
 # PAPU
-Personal Artificial Programmable Unit - PAPU
+Personal Artificial Programmable Unit
