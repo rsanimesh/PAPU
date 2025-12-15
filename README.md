@@ -1,4 +1,4 @@
-# PAPU [![](https://img.shields.io/github/license/sourcerer-io/hall-of-fame.svg?colorB=ff0000)](https://github.com/rsanimesh/PAPU/blob/master/LICENSE)  [![](https://img.shields.io/badge/Rahul-Sinha-brightgreen.svg?colorB=ff0000)](http://sinharahul.com/)
+ko# PAPU [![](https://img.shields.io/github/license/sourcerer-io/hall-of-fame.svg?colorB=ff0000)](https://github.com/rsanimesh/PAPU/blob/master/LICENSE)  [![](https://img.shields.io/badge/Rahul-Sinha-brightgreen.svg?colorB=ff0000)](http://sinharahul.com/)
 
 Personal Artificial Programmable Unit.
 
@@ -41,3 +41,53 @@ Under Section 4.2. CI/CD Pipeline (Path to Production)
 >  * Secure Connectivity Note: The connection between GitLab and the Prod Analytics workspace is established using secret management capabilities to ensure credentials are not exposed to users or stored as plaintext environment variables. This maintains a secure, non-interactive connection for automated CI/CD processes.
 > 
 Which of these documents (email or Confluence update) would you like to finalize first?
+
+
+
+
+
+
+_------------------------------------66666------
+
+
+## Draft Email Response
+
+**Subject:** RE: BUK AI ML Databricks Architecture Call - Follow-up Questions
+
+Hi Swapnil,
+
+Thank you for the opportunity to walk you through the architecture. Please find responses to your questions below:
+
+**1. S3 Bucket Controls for Temporary Storage (Architecture Diagram #3)**
+
+The S3 bucket used for temporary storage in the Prod Analytics workspace is governed by the following controls:
+
+- **Access Restriction**: Bucket access is restricted exclusively to the Databricks workspace through IAM roles and bucket policies. No downstream systems or external services have access to this bucket.
+- **Purpose**: This bucket serves as temporary storage for feature engineering outputs, training datasets, and interim artifacts during the model development lifecycle.
+- **Data Lifecycle**: Data stored in this bucket is transient and follows a defined retention policy. Once models are finalized, outputs are published to the Unity Catalog and subsequently to the EDP Central Catalogue.
+- **Network Isolation**: The bucket is configured within the Barclays Databricks VPC with appropriate network controls to prevent unauthorized access.
+
+**2. Tenancy Segregation in Production Analytical Workspace**
+
+For the Production Analytical workspace, we do not implement tenancy segregation based on model types or model purposes. Access control and segregation are managed through:
+
+- **Role-Based Access Control (RBAC)**: Segregation is enforced via Unity Catalog permissions assigned to designated AD groups (Analysts, Data Scientists, ML Engineers, Super Users).
+- **Workspace Personas**: Different personas have appropriate access levels for their functions - for example, Data Scientists have read/write access for model building and development, while Analysts have read-only access.
+- **Resource Governance**: All users within the workspace share the same compute and storage resources, with usage governed through workspace-level policies and quotas.
+
+This approach provides flexibility for collaboration while maintaining appropriate access controls based on user roles rather than creating isolated environments per model type.
+
+**3. CSM Usage and Guild Engagement**
+
+We have documented our approach to Cluster Security Mode configurations across the three workspaces in alignment with our security requirements and operational workflows. The implementation considers the distinct purposes of each environment - development/experimentation in Prod Analytics, validation in Prod Parallel, and secure execution in Prod.
+
+Our authentication strategy for CI/CD pipelines leverages centralized secret management to maintain security while enabling automation. The specific CSM configurations and service principal assignments are being finalized in coordination with the guild to ensure alignment with enterprise security standards.
+
+I will update the architecture documentation with these details in the relevant sections. Please let me know if you need any additional clarification.
+
+Thanks and Regards,  
+[Your Name]
+
+---
+
+**Would you like me to adjust the tone, add more technical details to any section, or modify the level of ambiguity in the CSM response?**
