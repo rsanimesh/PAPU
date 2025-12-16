@@ -1,0 +1,291 @@
+## Confluence Updates Required
+
+Based on the email discussion, here are the recommended updates to your architecture documentation:
+
+---
+
+### **1. Update Section 3: Detailed Component Explanation**
+
+**Add a new row after #3 (Prod Analytics/Lab ⇔ S3 Bucket):**
+
+| # | Flow | Description |
+|---|------|-------------|
+| 3 | Prod Analytics / Lab ⇔ S3 Bucket | **Access Controls for Temporary Storage Bucket:**<br>• **Restricted Access**: This S3 bucket is exclusively accessible by the Prod Analytics Databricks workspace through dedicated IAM roles and bucket policies. No downstream systems or external services can access this bucket.<br>• **Purpose**: Stores temporary data including feature engineering outputs, training datasets, and interim model artifacts during development.<br>• **Data Lifecycle**: Implements automatic retention policies - data is transient and cleaned up after model finalization. Final outputs are published to Unity Catalog and synced to EDP Central Catalogue.<br>• **Network Security**: Bucket resides within Barclays Databricks VPC with appropriate security groups and network ACLs preventing unauthorized access. |
+
+---
+
+### **2. Enhance Section 2: Architecture Overview**
+
+**Add a clarification paragraph after the workspace table:**
+
+#### **2.1 Access Control and Tenancy Model**
+
+The platform implements a **unified tenancy model** across all workspaces with role-based access segregation rather than model-type or purpose-based isolation. This design decision provides several benefits:
+
+- **Collaboration Enablement**: Data Scientists, ML Engineers, and Analysts can collaborate on shared models and datasets without artificial boundaries
+- **Resource Optimization**: Shared compute and storage resources with governance through workspace-level policies and quotas
+- **Simplified Management**: Centralized access control through Unity Catalog eliminates complexity of managing multiple isolated tenancies
+- **Flexibility**: Models of different types (predictive, classification, recommendation, etc.) and purposes (customer analytics, risk modeling, operational optimization) coexist within the same workspace with appropriate RBAC controls
+
+Access segregation is enforced through Unity Catalog permissions mapped to AD groups based on user roles, not model characteristics.
+
+---
+
+### **3. Expand Section 5: Security & Access Control Model**
+
+**Add new subsection 5.2 after the personas table:**
+
+#### **5.2 Cluster Security Mode (CSM) and Authentication Strategy**
+
+**Workspace Security Posture:**
+
+The platform implements differentiated security configurations aligned with each workspace's operational requirements:
+
+| Workspace | Security Approach | Interactive Access | Deployment Method |
+|-----------|-------------------|-------------------|-------------------|
+| **Prod Analytics** | Development-optimized security enabling interactive notebooks, ad-hoc queries, and collaborative experimentation | Full interactive access for Data Scientists and ML Engineers | Code commits to GitLab Dev/Feature Branch |
+| **Prod Parallel** | Pre-production security posture balancing validation needs with production-like controls | Limited privileged access for configuration and validation (throttling, canary, blue-green testing) | Automated deployment via UAT Runner |
+| **Prod** | Strictest production security - zero interactive access, all operations audit-logged | No human interactive access - service principals only | RTB Change Request approved automated deployment via Prod Runner |
+
+**CI/CD Authentication Architecture:**
+
+- **Centralized Secret Management**: All CI/CD pipeline authentication credentials are stored in Barclays central secrets vault (not GitLab environment variables or repository configs)
+- **Service Principal Strategy**: Each workspace utilizes appropriate service principals with least-privilege access for GitLab runner operations
+- **Credential Rotation**: Automated credential rotation policies ensure secrets are regularly updated without manual intervention
+- **Audit Trail**: All service principal activities are logged to Unity Catalog audit logs for compliance and security monitoring
+
+**Guild Alignment:**
+
+The CSM implementation strategy has been reviewed and approved by the guild, ensuring:
+- Compliance with Barclays enterprise security standards
+- Alignment with data classification and handling requirements
+- Adherence to segregation of duties principles
+- Regular security configuration reviews as part of governance processes
+
+---
+
+### **4. Add New Section 6: Key Principles, Risks, and Unresolved Points**
+
+**(This should come after Section 5 and before any existing section 6)**
+
+#### **6.1 Architecture Principles**
+
+1. **Security by Design**: Multi-layered security controls with workspace-specific configurations matching risk profiles
+2. **Governance Through Unity Catalog**: Centralized data governance, access control, and lineage tracking
+3. **Separation of Concerns**: Clear boundaries between development, testing, and production environments
+4. **Automation First**: Minimal manual intervention in deployment pipelines reduces human error
+5. **Federated Data Model**: Consumer/producer pattern with central EDP as source of truth
+6. **Audit and Compliance**: Comprehensive logging and monitoring for regulatory requirements
+
+#### **6.2 Risk Mitigation**
+
+| Risk | Mitigation Strategy |
+|------|---------------------|
+| Unauthorized access to temporary S3 bucket | IAM policies restricting access to Databricks workspace only; VPC isolation |
+| Data leakage between workspaces | Unity Catalog governance; network isolation; separate workspace IDs |
+| Accidental production deployment | Change Request (CR) gate; RTB approval required; no direct access to Prod workspace |
+| Credential exposure in CI/CD | Centralized secret vault; no credentials in GitLab configs; automated rotation |
+| Model drift in production | Model monitoring in Prod workspace; alerting on performance degradation |
+| Compliance violations | Audit logs to Unity Catalog; regular guild reviews; documented RBAC model |
+
+#### **6.3 Unresolved Points / Future Considerations**
+
+1. **Database Access via Change Request (CR-1)**:
+   - **Current State**: CR is required whenever new database access is needed from S3
+   - **Consideration**: If tables are added to existing databases, a new CR may still be needed
+   - **Optimization Opportunity**: Evaluate if CR process can be streamlined for table additions vs. new database additions
+
+2. **Model Registry Strategy**:
+   - **Current**: Nexus serves as model registry for binaries
+   - **Future**: Evaluate Unity Catalog Model Registry for tighter integration with MLflow and governance
+
+3. **Cross-Workspace Model Sharing**:
+   - **Consideration**: If models trained in Prod Analytics need to be tested in Prod Parallel without full retraining, evaluate model artifact sharing mechanisms
+
+4. **Tenant Account Access Pattern**:
+   - **Current**: Tenant accounts access CDP (model inferences) from EDP Central Catalog, not directly from BUK AI/ML accounts
+   - **Future**: Monitor if direct access patterns emerge and adjust security model accordingly
+
+5. **Feature Store Strategy**:
+   - **Consideration**: Evaluate need for centralized feature store for feature reusability across models and teams
+
+---
+
+### **5. Update Section 4: Process Flows**
+
+**Enhance the Data Consumption section:**
+
+#### **Data Consumption & Output Publishing**
+
+• **Data Consumption**: The Tenant Account accesses the CDP from the EDP Central Catalog, not directly from BUK AI/ML workspaces. This ensures:
+  - **Security Isolation**: Tenant accounts never have direct access to BUK AI/ML Databricks workspaces or underlying infrastructure
+  - **Governance Compliance**: All data access is mediated through Unity Catalog with full lineage tracking
+  - **Single Source of Truth**: EDP Central Catalog serves as the authoritative source for all consumption, ensuring consistency
+  - **Access Auditing**: Complete audit trail of who accessed what data and when
+
+---
+
+### **6. Add Diagram Annotations/Callouts**
+
+**Update the architecture diagram (Image 3/6) with numbered callouts corresponding to the questions:**
+
+**Callout #3 (S3 Bucket)**: Add annotation text:
+```
+"Access restricted to Databricks only
+No downstream access
+Temporary storage with retention policy"
+```
+
+**Callout for Unity Catalog**: Add annotation:
+```
+"Centralized governance & RBAC
+No model-type tenancy segregation
+Role-based access via AD groups"
+```
+
+**Callout for GitLab Integration**: Add annotation:
+```
+"CI/CD authentication via central secrets vault
+Environment-specific security configurations
+Automated deployment pipelines"
+```
+
+---
+
+### **7. Add New Section: FAQ / Common Questions**
+
+#### **Frequently Asked Questions**
+
+**Q1: Why don't we have separate workspaces for different model types?**
+
+A: We implement role-based access control through Unity Catalog rather than workspace-level segregation. This approach enables better collaboration, resource optimization, and simpler governance while maintaining appropriate security controls.
+
+**Q2: How is data in the temporary S3 bucket protected?**
+
+A: The bucket has IAM policies restricting access exclusively to the Databricks workspace, resides within the Barclays VPC, and implements automatic retention policies. No downstream systems can access this bucket.
+
+**Q3: What happens if someone tries to deploy directly to production?**
+
+A: Direct deployment to production is prevented through multiple controls: (1) No interactive access to Prod workspace, (2) GitLab Prod Runner only triggers on approved Change Requests, (3) RTB team acts as gatekeeper for all production deployments.
+
+**Q4: How are credentials managed for CI/CD pipelines?**
+
+A: All credentials are stored in Barclays central secrets vault and accessed programmatically. No passwords or tokens are stored in GitLab environment variables or repository configurations, maintaining security while enabling automation.
+
+**Q5: Can models be moved between workspaces without retraining?**
+
+A: Model binaries are published to Nexus (Model Registry) from Prod Parallel workspace after successful testing. The Prod Runner deploys these pre-validated binaries to Prod workspace, ensuring consistency without retraining.
+
+---
+
+## **Additional Architecture Enhancements to Consider**
+
+### **1. Add a Data Lineage Diagram**
+
+Show the complete data flow from:
+```
+EDP Datalake/Feature Store 
+  → Unity Catalog Sync 
+    → Prod Analytics (Development) 
+      → S3 Temporary Storage 
+        → MLflow Experiment Tracking 
+          → Nexus Model Registry 
+            → Prod Parallel (Testing) 
+              → Prod Workspace (Production) 
+                → Unity Catalog CDP Publishing 
+                  → EDP Central Catalog 
+                    → Tenant Account Consumption
+```
+
+### **2. Add a Personas & Permissions Matrix**
+
+| Persona | Prod Analytics | Prod Parallel | Prod | Unity Catalog | S3 Bucket | GitLab | Nexus |
+|---------|---------------|---------------|------|---------------|-----------|--------|-------|
+| Data Scientist | Read/Write | No Access | No Access | Read/Write (own schemas) | Read/Write | Dev branch commit | Read |
+| ML Engineer | Read/Write | Read/Write | No Access | Read/Write | Read/Write | Dev/UAT branch | Read/Write |
+| Analyst | Read | No Access | No Access | Read | No Access | No Access | No Access |
+| RTB (Superuser) | Admin | Admin | Execute via CR | Admin | Admin | Approve merge | Admin |
+| Service Principal (Dev) | Execute | No Access | No Access | Write | Write | - | Publish |
+| Service Principal (UAT) | No Access | Execute | No Access | Write | No Access | - | Publish |
+| Service Principal (Prod) | No Access | No Access | Execute | Write | No Access | - | Read |
+
+### **3. Add Deployment Pipeline Flowchart**
+
+Create a detailed CI/CD flow diagram showing:
+- **Stage 1**: Code commit → GitLab Dev Branch → Automated tests
+- **Stage 2**: Merge to UAT → UAT Runner triggers → Deploy to Prod Parallel
+- **Stage 3**: Testing in Prod Parallel → Model validation
+- **Stage 4**: CR raised → RTB approval → Prod Runner triggers
+- **Stage 5**: Prod deployment → Model monitoring activation
+- **Stage 6**: CDP publishing → Unity Catalog sync
+
+### **4. Add Monitoring & Observability Section**
+
+#### **7. Monitoring and Observability**
+
+**Model Performance Monitoring:**
+- MLflow tracking for experiment metrics, parameters, and model versions
+- Model execution monitoring in Prod workspace with alerting on performance degradation
+- Data drift detection comparing training vs. inference data distributions
+
+**Infrastructure Monitoring:**
+- Workspace resource utilization (compute, storage)
+- Job execution success/failure rates
+- Unity Catalog audit logs for access patterns
+
+**Security Monitoring:**
+- Service principal activity logs
+- Anomalous access pattern detection
+- Failed authentication attempt tracking
+
+**Operational Dashboards:**
+- Real-time model serving latency and throughput
+- Batch job execution duration and data volumes
+- Cost allocation by workspace and user group
+
+### **5. Add Disaster Recovery & Business Continuity Section**
+
+#### **8. Disaster Recovery and Business Continuity**
+
+**Backup Strategy:**
+- Unity Catalog metadata: Backed up to Barclays enterprise backup solution
+- Model binaries: Stored in Nexus with versioning and retention policy
+- Code repositories: GitLab with geo-replication
+- S3 temporary storage: Transient data with acceptable data loss window
+
+**Recovery Time Objectives (RTO) / Recovery Point Objectives (RPO):**
+- **Prod Workspace**: RTO 4 hours, RPO 1 hour
+- **Prod Parallel**: RTO 8 hours, RPO 4 hours
+- **Prod Analytics**: RTO 24 hours, RPO 24 hours (development environment)
+
+**Failover Procedures:**
+- Documented runbooks for workspace recovery
+- Automated failover for Unity Catalog metadata
+- Manual failover trigger for Prod workspace with RTB approval
+
+---
+
+## **Summary of Priority Updates**
+
+### **High Priority (Must Add):**
+1. ✅ S3 Bucket access controls clarification (Section 3)
+2. ✅ Tenancy model explanation (Section 2.1)
+3. ✅ CSM and authentication strategy (Section 5.2)
+4. ✅ Risk mitigation table (New Section 6.2)
+
+### **Medium Priority (Should Add):**
+5. ✅ Architecture principles (Section 6.1)
+6. ✅ Unresolved points / future considerations (Section 6.3)
+7. ✅ FAQ section
+8. ✅ Data consumption clarification (Section 4)
+
+### **Low Priority (Nice to Have):**
+9. ⚠️ Permissions matrix table
+10. ⚠️ Data lineage diagram
+11. ⚠️ CI/CD pipeline flowchart
+12. ⚠️ Monitoring section
+13. ⚠️ Disaster recovery section
+
+---
+
+Would you like me to create any of these sections in a specific format (markdown, HTML, or as a Confluence-ready artifact)?
