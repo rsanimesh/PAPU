@@ -1,0 +1,35 @@
+Here is a polished and professional rewrite of the email, formatted for clarity and scannability. I have corrected a few minor typos from the original draft (such as "Cluster Polices" to "Cluster Policies" and "CURD" to standard "CRUD" permissions).
+Subject: Consolidated Requirements: Databricks Roles, S3 Onboarding, and Glue Catalog Sync
+Hi Naveen,
+As requested, I have collated all of our current requirements into this email for your convenience.
+1. Databricks Roles and Permissions
+Below is the requested matrix for Databricks roles.
+Critical Request: We would greatly appreciate it if the Databricks Ext role (highlighted in the last row) could be expedited and onboarded before Wednesday, February 25th. This access is critical for the upcoming NBA2.0 use case.
+| ENV | AD Group | Roles | Clusters | Jobs | Cluster Policies | DLT | Directories | Notebooks | MLflow |
+|---|---|---|---|---|---|---|---|---|---|
+| Prod Analytics | GLO-CLI-SEC-AZADDBXBUKAIML-ANL-ADM | AIML Admin | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE |
+| Prod Analytics | GLO-CLI-SEC-AZADDBXBUKDI-ANL-ADM | DI Admin | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE |
+| Prod Analytics | GLO-CLI-SEC-AZADDBXBUKDI-ANL-ANA | Analyst | CAN_USE | CAN_MANAGE_RUN | N/A | CAN_USE | CAN_USE | CRUD |  |
+| Prod Analytics | GLO-CLI-SEC-AZADDBXBUKDI-ANL-DS | Data Scientist | CAN_USE | CAN_MANAGE_RUN | N/A | CAN_USE | CAN_USE | CRUD | CAN_MANAGE |
+| Prod Analytics | GLO-CLI-SEC-AZADDBXBUKAIML-ANL-MLE | ML Engineers | CAN_MANAGE | CAN_MANAGE_RUN | N/A | CAN_USE | CAN_USE | CRUD | CAN_MANAGE |
+| Prod Analytics | GLO-CLI-SEC-AZADDBXBUKAIML-ANL-RTB | RTB | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE |
+| Prod Parallel | GLO-CLI-SEC-AZADDBXBUKAIML-PRL-MLE | ML Engineers | CAN_MANAGE | CAN_MANAGE_RUN | N/A | CAN_USE | CAN_USE | CRUD | CAN_MANAGE |
+| Prod Parallel | GLO-CLI-SEC-AZADDBXBUKAIML-PRL-RTB | RTB | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE |
+| Prod Prod | GLO-CLI-SEC-AZADDBXBUKAIML-PRD-RTB | RTB | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE | CAN_MANAGE |
+| Prod Analytics | fGLBAZADDBXBUKDIADS | Databricks Ext | CAN_MANAGE | CAN_MANAGE_RUN | N/A | CAN_USE | CAN_USE | CRUD | CAN_MANAGE |
+2. S3 Bucket Onboarding
+Please onboard the following S3 buckets to the Prod Parallel and Prod Prod environments:
+ * Prod Parallel: prd2-pre-bukaimlcloud02-440744216649-eu-west-1
+ * Prod Prod: prd2-pre-bukaimlcloud02-715841349169-eu-west-1
+3. Feature Store Data Onboarding
+Please include Feature Store data onboarding for both of the environments mentioned above using the following details:
+ * S3 Bucket: svc-s3-prodexe-715841349169-datastore
+ * KMS Key: arn:aws:kms:eu-west-1:715841349169:key/8f4fc6a3-0f8a-444f-a9dd-5c7b2edeca88
+4. Glue Catalog Syncing
+We require the Glue catalog to be synced for the Prod Analytics, Prod Parallel, and Prod Prod environments.
+ * Parent Account: 715841349169
+ * S3 Bucket: svc-s3-prodexe-715841349169-datastore
+Please let me know if you need any further clarification or additional details to proceed with these requests.
+Best regards,
+[Your Name]
+Would you like me to adjust the tone further, or format this directly into an email template you can copy and paste into your client?
