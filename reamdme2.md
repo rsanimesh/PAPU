@@ -1,86 +1,71 @@
-Here is the draft for your **`README.md`** file. You can save this as a text file (`.txt`), a Word doc, or a Markdown file (`.md`) at the very top of your project folder.
+This is a great question. When dealing with billions of rows, running standard profiling queries (like exact distinct counts) can easily crash your driver or lead to queries that spin forever.
+Since you are in Databricks, the engine (Apache Spark) is perfectly designed for this, provided you use the right functions.
+Here is the best, most optimized way to extract the schema, null counts, total counts, and unique values for your nested Parquet files without breaking your system.
+The Strategy for Billions of Rows
+ * Read the Schema from Metadata: Parquet files store schema (column names and data types) in their metadata. Spark reads this almost instantly without scanning the actual data.
+ * Use Distributed Aggregation: Do not use Pandas or .collect() on the raw data. Let Spark's distributed engine calculate the metrics across your worker nodes.
+ * Use approx_count_distinct: This is the most crucial step. Doing an exact COUNT(DISTINCT column) on billions of rows requires massive data shuffling and is the #1 cause of Out-Of-Memory (OOM) errors. Spark's approx_count_distinct uses the HyperLogLog algorithm to give you an answer with ~5% error margin but runs exponentially faster and uses a fraction of the memory.
+The Optimized PySpark Solution
+You can run this code in a Databricks Notebook attached to a cluster with access to that Unity Catalog volume. Based on your screenshot, I have pre-filled the Volume path.
+from pyspark.sql.functions import col, count, when, approx_count_distinct
+from pyspark.sql.types import StructType
 
-This document acts as the "map" for your team, ensuring the new structure stays clean.
+# Base path from your screenshot
+base_volume_path = "/Volumes/catalog_buk_di_prd_an/volume_schema_buk_di_prd_an/external_volume_buk_feature_store/"
 
----
+# 1. Get the list of folders in the volume
+folders = dbutils.fs.ls(base_volume_path)
 
-# Project NBA 2.0 Migration - Structure & Index
+for folder in folders:
+    if folder.isDir():
+        folder_name = folder.name.rstrip('/')
+        folder_path = folder.path
+        
+        print(f"==================================================")
+        print(f"Profiling Folder: {folder_name}")
+        print(f"==================================================")
 
-**Last Updated:** January 2026
-**Project Status:** Execution / Migration
+        try:
+            # 2. Read the Parquet data (this is lazy, it doesn't load data into memory yet)
+            df = spark.read.parquet(folder_path)
 
-## 1. Folder Structure Overview
+            # 3. Get total count
+            total_count = df.count()
+            print(f"Total Rows: {total_count}\n")
 
-This repository is organized by lifecycle phase. Please save files in their respective folders, not in the root directory.
+            if total_count > 0:
+                # 4. Build the aggregation expressions dynamically for all columns
+                exprs = []
+                for c_name, c_type in df.dtypes:
+                    # Count Nulls
+                    exprs.append(count(when(col(c_name).isNull(), c_name)).alias(f"{c_name}_nulls"))
+                    # Approximate Unique Values (Saves your cluster from crashing)
+                    exprs.append(approx_count_distinct(col(c_name)).alias(f"{c_name}_uniques"))
 
-* **📂 00_Project_Management**
-* **Use for:** Project timelines, Gantt charts, dependency trackers, and resource planning.
-* **Key File:** `NBA2.0_PM_MasterPlan_&_Roles_v1.0.xlsx` (Contains the detailed plan, dependencies, and User Access Role definitions).
+                # 5. Execute the aggregation (This is where the actual cluster work happens)
+                # We collect only the single row of aggregated results back to the driver
+                stats_row = df.agg(*exprs).collect()[0]
 
+                # 6. Print the results in a clean table format
+                print(f"{'Column Name':<35} | {'Data Type':<15} | {'Null Count':<15} | {'Approx Uniques':<15}")
+                print("-" * 85)
+                
+                for c_name, c_type in df.dtypes:
+                    null_count = stats_row[f"{c_name}_nulls"]
+                    unique_count = stats_row[f"{c_name}_uniques"]
+                    print(f"{c_name:<35} | {c_type:<15} | {null_count:<15} | {unique_count:<15}")
+                    
+            else:
+                print("Folder is empty or contains no Parquet data.")
+            print("\n")
 
-* **📂 01_Architecture_&_Design**
-* **Use for:** High-Level Design (HLD) documents, solution architecture diagrams, and Confluence reference links.
-* **Key File:** `NBA2.0_Arch_MLOps_Diagram_v0.1.jpg` (Visual flow of Nexus/Gitlab/Databricks integration).
+        except Exception as e:
+            print(f"Skipping {folder_name} - Could not read as Parquet. Error: {e}\n")
 
-
-* **📂 02_Governance_&_Security**
-* **Use for:** Compliance trackers, CSO approvals, PII confirmation logs, and Database access requests.
-* **Key File:** `NBA2.0_Gov_CSO_Approval_Tracker_v1.0.xlsx` (Tracks CSO/DB Owner approvals per database).
-
-
-* **📂 03_Data_Engineering**
-* **Use for:** Feature store definitions, data lineage, path mappings to EDP, and data dictionaries.
-* **Key File:** `NBA2.0_Data_FeatureStore_MASTER_v1.0.xlsx` (The single source of truth for BUK/Non-BUK features and descriptions).
-
-
-* **📂 04_MLOps_&_Deployment**
-* **Use for:** CI/CD pipeline configurations, Environment setup instructions (Prod Analytics/Parallel/Prod), and Job definitions.
-* **Key File:** MLOps pipeline documentation and environment naming conventions.
-
-
-* **📂 99_Archive_&_Drafts**
-* **Use for:** Old file versions, scratchpads, and superseded exports.
-* *Note:* If you are unsure if a file is current, look here first.
-
-
-
----
-
-## 2. Naming Convention Standard
-
-To maintain order, all new files must follow this naming convention:
-`NBA2.0_[Category]_[ContentName]_[Version]`
-
-**Examples:**
-
-* `NBA2.0_PM_StatusReport_v1.docx`
-* `NBA2.0_Data_IngestionSpec_v2.xlsx`
-* `NBA2.0_Arch_Diagram_v1.png`
-
----
-
-## 3. "Where do I find...?" (Quick Lookup)
-
-| If you are looking for... | Open this file | Located in Folder |
-| --- | --- | --- |
-| **Project Timelines** | `NBA2.0_PM_MasterPlan_&_Roles_v1.0.xlsx` | 📂 00_Project_Management |
-| **User Roles & Access** | `NBA2.0_PM_MasterPlan_&_Roles_v1.0.xlsx` (See 'Roles' tab) | 📂 00_Project_Management |
-| **Feature Definitions** | `NBA2.0_Data_FeatureStore_MASTER_v1.0.xlsx` | 📂 03_Data_Engineering |
-| **CSO / PII Approvals** | `NBA2.0_Gov_CSO_Approval_Tracker_v1.0.xlsx` | 📂 02_Governance_&_Security |
-| **Confluence Links** | `NBA2.0_Ref_Confluence_Links_v1.0.docx` | 📂 01_Architecture_&_Design |
-| **MLOps Diagrams** | `NBA2.0_Arch_MLOps_Diagram_v0.1.jpg` | 📂 01_Architecture_&_Design |
-
----
-
-## 4. Important Notes regarding "Features" Files
-
-* **DO NOT USE:** `NBA2.0 features 1.xlsx` or `NBA Features Summary_OLD.xlsx`. These are obsolete drafts.
-* **USE ONLY:** `NBA2.0_Data_FeatureStore_MASTER_v1.0.xlsx`. This file contains the validated "Description", "IsBSL" flags, and correct data sources.
-
----
-
-**Next Steps for the User:**
-
-1. Create the folders listed above.
-2. Rename your files according to the table in the previous chat.
-3. Save this text as `README.md` or `README.txt` in the main folder.
+Why this won't break your system:
+ * Lazy Evaluation: spark.read.parquet() only looks at the file footers to get the column names and types. It does not load billions of rows into memory.
+ * Single Pass Scan: The .agg(*exprs) line bundles all the null checks and unique counting into a single scan of the data.
+ * Minimal Driver Overhead: The collect()[0] at the very end only returns one single row of aggregated numbers to your notebook screen, meaning your driver node won't run out of memory.
+An Alternative: Databricks Data Explorer (UI)
+If you don't want to run code every time, you could register these Parquet folders as External Tables in Unity Catalog. Once they are registered as tables, you can click on them in the Databricks Catalog UI, go to the "Data" tab, and click "Data Profile". Databricks will automatically run a safe, optimized profiling job in the background and show you visual charts of nulls, uniques, and distributions.
+Would you like me to show you the SQL commands to register these volume folders as external tables so you can use the built-in UI profiler?
