@@ -1,0 +1,389 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Show and Tell: Automated Pipeline Testing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Core Reset & Setup */
+        * { box-sizing: border-box; }
+        p { margin: 0; margin-bottom: 15px; }
+        
+        body {
+            background-color: #f1f5f9;
+            display: grid;
+            gap: 40px;
+            grid-template-columns: 1fr;
+            margin: 0;
+            min-height: 100vh;
+            padding: 40px 0;
+            place-items: center;
+        }
+
+        /* Slide Container - Strict 1280x720 constraints */
+        .slide-container {
+            align-items: center;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(15, 23, 42, 0.1);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Open Sans', sans-serif;
+            height: 720px;
+            justify-content: center;
+            overflow: hidden;
+            padding: 60px;
+            position: relative;
+            width: 1280px;
+        }
+
+        /* Decorative Background Elements */
+        .slide-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(14, 165, 233, 0.05) 0%, rgba(255,255,255,0) 70%);
+            border-bottom-left-radius: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .slide-container > * { position: relative; z-index: 1; }
+
+        /* Typography */
+        .slide-container h1, .slide-container h2, .slide-container h3 {
+            color: #0f172a; /* Deep Navy */
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .slide-container p, .slide-container li, .slide-container th, .slide-container td, .slide-container .number-label {
+            color: #475569; /* Slate Gray */
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        .slide-container h1 { font-size: 64px; line-height: 1.1; margin-bottom: 20px; letter-spacing: -1px; }
+        .slide-container h2.slide-title { font-size: 44px; margin-bottom: 40px; text-align: left; width: 100%; color: #0f172a; border-left: 6px solid #0ea5e9; padding-left: 20px; }
+        .slide-container h3 { font-size: 28px; margin-bottom: 15px; color: #1e293b; }
+        
+        .slide-container p, .slide-container li { font-size: 20px; line-height: 1.6; }
+        .slide-container .subtitle { font-size: 24px; font-weight: 400; color: #64748b; margin-bottom: 30px; }
+
+        .slide-container .content-area {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* Layouts */
+        .title-layout { text-align: center; max-width: 900px; }
+        .title-layout hr { width: 80px; height: 4px; background-color: #0ea5e9; border: none; margin: 30px auto; }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .bullet-list ul { list-style: none; margin: 0; padding: 0; }
+        .bullet-list li { margin-bottom: 25px; padding-left: 45px; position: relative; }
+        .bullet-list i { color: #0ea5e9; font-size: 24px; left: 0; position: absolute; top: 4px; }
+        .bullet-list strong { color: #0f172a; }
+
+        .image-wrapper {
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            height: 420px;
+            overflow: hidden;
+            width: 100%;
+        }
+        .image-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+        .two-column .image-wrapper img { object-fit: contain; background: #f8fafc; padding: 20px;}
+
+        /* Tiled Layout */
+        .tiled-content { display: flex; gap: 30px; width: 100%; justify-content: center; align-items: stretch; }
+        .tile {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            flex: 1;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .tile .icon {
+            background-color: #e0f2fe;
+            border-radius: 50%;
+            color: #0ea5e9;
+            font-size: 36px;
+            height: 80px;
+            width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+        .tile p { font-size: 18px; margin: 0; }
+
+        /* Highlight Numbers */
+        .highlight-numbers-layout { align-items: center; }
+        .highlight-numbers-layout > div:first-child { text-align: center; padding-right: 40px; border-right: 2px solid #e2e8f0; }
+        .highlight-numbers-layout .number { color: #0ea5e9; font-size: 160px; font-weight: 700; font-family: 'Montserrat', sans-serif; line-height: 1; }
+        .highlight-numbers-layout .number-label { font-size: 28px; font-weight: 600; color: #0f172a; margin-top: 10px;}
+
+        /* Table */
+        .table-layout table { width: 100%; border-collapse: collapse; }
+        .table-layout th, .table-layout td { padding: 20px 24px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .table-layout th { background-color: #f8fafc; color: #0f172a; font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 20px; border-top: 1px solid #e2e8f0;}
+        .table-layout td { font-size: 18px; }
+        .table-layout tr:last-child td { border-bottom: 2px solid #e2e8f0; }
+        .table-layout .positive { color: #10b981; font-weight: 600; }
+        
+        /* Timeline */
+        .timeline-layout { align-items: stretch; display: flex; height: stretch; justify-content: space-between; position: relative; width: 100%; padding-top: 40px;}
+        .timeline-layout .timeline-line { background-color: #e2e8f0; height: 4px; left: 0; position: absolute; top: 50%; transform: translateY(-2px); width: 100%; z-index: 0; }
+        .timeline-item { position: relative; text-align: center; width: 23%; }
+        .timeline-item::after {
+            background-color: #fff; border-radius: 50%; border: 4px solid #0ea5e9; content: ''; height: 24px; left: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%); width: 24px; z-index: 1;
+        }
+        .timeline-item.done::after { background-color: #10b981; border-color: #10b981; }
+        .timeline-item .content-wrapper { left: 0; position: absolute; width: 100%; }
+        .timeline-item:nth-child(odd) .content-wrapper { bottom: 50%; margin-bottom: 30px; }
+        .timeline-item:nth-child(even) .content-wrapper { margin-top: 30px; top: 50%; }
+        .timeline-item h3 { color: #0ea5e9; font-size: 22px; margin-bottom: 8px;}
+        .timeline-item.done h3 { color: #10b981; }
+        .timeline-item p { font-size: 16px; }
+
+        /* Q&A */
+        .qa-layout { text-align: center; width: 100%; align-self: center; }
+        .qa-layout h2 { font-size: 80px; margin-bottom: 20px; color: #0f172a; }
+        .qa-layout p { font-size: 28px; color: #475569;}
+
+        /* Code Block Simulation */
+        .code-block { background: #1e293b; border-radius: 8px; padding: 25px; font-family: monospace; color: #e2e8f0; font-size: 16px; line-height: 1.5; overflow-x: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);}
+        .code-block span.keyword { color: #c678dd; }
+        .code-block span.function { color: #61afef; }
+        .code-block span.string { color: #98c379; }
+        .code-block span.comment { color: #7f848e; font-style: italic; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Slide 1: Title -->
+    <div class="slide-container" id="slide1">
+        <div class="title-layout">
+            <h1>Automating Confidence</h1>
+            <p class="subtitle">Achieving 100% Pipeline Coverage with Snapshot Testing</p>
+            <hr>
+            <p>Show & Tell: Demographics Module Migration</p>
+        </div>
+    </div>
+
+    <!-- Slide 2: The Problem -->
+    <div class="slide-container" id="slide2">
+        <h2 class="slide-title">The Challenge: Legacy Validation</h2>
+        <div class="content-area">
+            <div class="two-column">
+                <div class="bullet-list">
+                    <ul>
+                        <li><i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i><strong>Zero Test Coverage:</strong> 34+ complex feature modules lacked automated safety nets.</li>
+                        <li><i class="fa-solid fa-hourglass-half" style="color: #ef4444;"></i><strong>Manual Bottlenecks:</strong> Every code change required hours of manual validation against Scala outputs.</li>
+                        <li><i class="fa-solid fa-bug" style="color: #ef4444;"></i><strong>Regression Risks:</strong> Refactoring the codebase often led to unpredictable production bugs.</li>
+                        <li><i class="fa-solid fa-scale-unbalanced" style="color: #ef4444;"></i><strong>Migration Doubt:</strong> Low confidence in the accuracy of the Scala-to-Python port.</li>
+                    </ul>
+                </div>
+                <div>
+                    <!-- Abstract representation of complex unmanaged code/pipelines -->
+                    <div class="image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Complex interconnected wires abstract">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3: The 100% Win -->
+    <div class="slide-container" id="slide3">
+        <h2 class="slide-title">The Efficiency Win</h2>
+        <div class="content-area">
+            <div class="two-column highlight-numbers-layout">
+                <div>
+                    <div class="number">100%</div>
+                    <div class="number-label">Code Coverage</div>
+                </div>
+                <div>
+                    <h3>Maximum Output, Minimal Code</h3>
+                    <p>Instead of writing 50+ brittle unit tests for individual functions, we implemented a highly efficient end-to-end regression testing strategy.</p>
+                    <p>By focusing on complete output validation, we secured the entire Demographics module using <strong>only ~150 lines of test code.</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: The 3 Tests -->
+    <div class="slide-container" id="slide4">
+        <h2 class="slide-title">The Secret Sauce: 3 Robust Tests</h2>
+        <div class="content-area">
+            <div class="tiled-content">
+                <div class="tile">
+                    <div class="icon"><i class="fa-solid fa-camera"></i></div>
+                    <h3>1. Snapshot Test</h3>
+                    <p>Executes the entire module end-to-end. Validates that the full data output strictly matches a predefined "golden baseline" fixture.</p>
+                </div>
+                <div class="tile">
+                    <div class="icon"><i class="fa-solid fa-table-columns"></i></div>
+                    <h3>2. Schema Test</h3>
+                    <p>Rigorously validates all output columns (e.g., all 12 demographic features). Instantly catches accidental column additions, removals, or type changes.</p>
+                </div>
+                <div class="tile">
+                    <div class="icon"><i class="fa-solid fa-users"></i></div>
+                    <h3>3. Row Count Test</h3>
+                    <p>Ensures zero customer loss during complex data joins. Catches underlying logic errors that might silently drop records.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5: How it Works (Code/Architecture) -->
+    <div class="slide-container" id="slide5">
+        <h2 class="slide-title">Seamless CI/CD Integration</h2>
+        <div class="content-area">
+            <div class="two-column">
+                <div>
+                    <h3>Dependency Injection</h3>
+                    <p>We inject a MockDataAccess layer that loads lightweight CSV fixtures instead of querying live databases.</p>
+                    <div class="bullet-list" style="margin-top: 20px;">
+                        <ul>
+                            <li><i class="fa-solid fa-check-circle" style="color: #10b981;"></i><strong>Lightning Fast:</strong> Tests run in under 5 seconds.</li>
+                            <li><i class="fa-solid fa-check-circle" style="color: #10b981;"></i><strong>Automated PR Guards:</strong> Runs automatically on every GitLab merge request.</li>
+                            <li><i class="fa-solid fa-check-circle" style="color: #10b981;"></i><strong>Instant Feedback:</strong> Developers see exact diffs if logic breaks.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="code-block">
+<span class="comment"># Test structure (injection-based, no patching)</span>
+<span class="keyword">def</span> <span class="function">test_demographics_snapshot</span>(spark, fixture):
+    
+    <span class="comment"># Inject mock (loads CSVs instead of DB)</span>
+    demo_module.da = mock_data_access
+    
+    <span class="comment"># Run the full compute() method end-to-end</span>
+    result = demo_module.compute(
+        date=<span class="string">"2026-06-02"</span>,
+        customer_base=fixture,
+        spark=spark
+    )
+    
+    <span class="comment"># Compare against golden baseline</span>
+    <span class="keyword">assert</span> result == snapshot
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 6: Metrics Before/After -->
+    <div class="slide-container" id="slide6">
+        <h2 class="slide-title">Measurable Impact</h2>
+        <div class="content-area">
+            <div class="table-layout">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Before</th>
+                            <th>After (Current Sprint)</th>
+                            <th>Business Impact</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Test Coverage</td>
+                            <td>0%</td>
+                            <td class="positive">100%</td>
+                            <td>Complete deployment confidence</td>
+                        </tr>
+                        <tr>
+                            <td>Manual Testing Time</td>
+                            <td>~2 hours / change</td>
+                            <td class="positive">0 hours</td>
+                            <td>Faster delivery, zero toil</td>
+                        </tr>
+                        <tr>
+                            <td>CI/CD Validation Time</td>
+                            <td>N/A</td>
+                            <td class="positive">< 5 seconds</td>
+                            <td>Instant developer feedback loop</td>
+                        </tr>
+                        <tr>
+                            <td>Regression Detection</td>
+                            <td>Manual / In Production</td>
+                            <td class="positive">Automatic in PR</td>
+                            <td>No broken code reaches production</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 7: Roadmap -->
+    <div class="slide-container" id="slide7">
+        <h2 class="slide-title">Rollout Roadmap</h2>
+        <div class="content-area">
+            <div class="timeline-layout">
+                <div class="timeline-line"></div>
+                <div class="timeline-item done">
+                    <div class="content-wrapper">
+                        <h3>Phase 1 (Done)</h3>
+                        <p><strong>Demographics Module</strong><br>100% coverage achieved and testing pattern successfully established.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="content-wrapper">
+                        <h3>Phase 2 (Next 2 Weeks)</h3>
+                        <p><strong>Channels & Holdings</strong><br>Apply pattern to 2 new modules. Target: 95%+ coverage, 3 days per module.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="content-wrapper">
+                        <h3>Phase 3 (Q3 2026)</h3>
+                        <p><strong>Core Feature Store</strong><br>Scale automation to all 7 primary CA modules. Pipeline coverage > 95%.</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="content-wrapper">
+                        <h3>Phase 4 (Q4 2026)</h3>
+                        <p><strong>Full Expansion</strong><br>Expand across all 34 modules (BarclayCard, CRM, Income) for total pipeline validation.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 8: Q&A -->
+    <div class="slide-container" id="slide8">
+        <div class="qa-layout">
+            <h2>Questions?</h2>
+            <p>Ready to discuss implementation, fixture data, or the GitLab pipeline.</p>
+        </div>
+    </div>
+
+</body>
+</html>
